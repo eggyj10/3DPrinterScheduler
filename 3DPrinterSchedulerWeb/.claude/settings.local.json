@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"C:\\\\Users\\\\Edwar\\\\OneDrive - Department of Education\\\\!HSSC\\\\2026 10D\\\\Digital Technologies \\(Mr Vriesema\\)\\\\3DPrinterSchedulerWeb\\\\3DPrinterSchedulerWeb\\\\wwwroot\\\\lib\" /s /b)",
+      "Bash(dotnet restore *)",
+      "Bash(dotnet build *)"
+    ]
+  }
+}

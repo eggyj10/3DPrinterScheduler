@@ -1,0 +1,297 @@
+/* ── LOGIN CONFIG PAGE ── */
+
+.lc-body {
+    background: var(--bg);
+    overflow: auto;
+    height: auto;
+    display: block;
+}
+
+.lc-topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.lc-topbar-inner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+.lc-title {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lc-back-link {
+    margin-left: auto;
+    font-size: 0.85rem;
+    color: var(--blue);
+    text-decoration: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.lc-back-link:hover { text-decoration: underline; }
+
+.lc-content {
+    max-width: 760px;
+    margin: 32px auto;
+    padding: 0 20px 60px;
+}
+
+.lc-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 32px;
+}
+
+.lc-heading {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.lc-subtext {
+    font-size: 0.9rem;
+    color: var(--muted);
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.lc-form-row {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 8px 12px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.lc-form-row label {
+    font-size: 0.92rem;
+    font-weight: 500;
+}
+
+/* ── WARNING BOX ── */
+.lc-warning-box {
+    background: #fff8e6;
+    border: 1.5px solid #f5c542;
+    border-radius: 10px;
+    padding: 18px 22px;
+}
+
+.lc-warning-title {
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 10px;
+    color: #7a5800;
+}
+
+.lc-warning-box p {
+    font-size: 0.88rem;
+    color: #5a4000;
+    line-height: 1.55;
+    margin-bottom: 8px;
+}
+
+.lc-warning-box p:last-child { margin-bottom: 0; }
+
+.lc-warning-box code {
+    background: rgba(0,0,0,0.07);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.83em;
+}
+
+/* ── CURRENT MODE ROW ── */
+.lc-current-mode-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 24px;
+    font-size: 0.9rem;
+    color: var(--muted);
+    flex-wrap: wrap;
+}
+
+.lc-mode-badge {
+    background: var(--blue-light);
+    color: var(--blue-dark);
+    border: 1px solid #c8d8ec;
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* ── SECTION HEADING ── */
+.lc-section-heading {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 24px 0 12px;
+    color: var(--text);
+}
+
+.lc-optional {
+    font-weight: 400;
+    font-size: 0.82rem;
+    color: var(--muted);
+}
+
+/* ── MODE CARDS ── */
+.lc-mode-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 4px;
+}
+
+.lc-mode-card {
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 0.15s, background 0.15s;
+    font-family: inherit;
+    color: var(--text);
+}
+
+.lc-mode-card:hover { border-color: var(--blue); background: var(--blue-light); }
+
+.lc-mode-card.active {
+    border-color: var(--blue);
+    background: var(--blue-light);
+    color: var(--blue-dark);
+}
+
+.lc-mode-icon { font-size: 1.8rem; margin-bottom: 6px; line-height: 1; }
+.lc-mode-label { font-size: 0.88rem; font-weight: 700; margin-bottom: 6px; }
+.lc-mode-desc { font-size: 0.77rem; color: var(--muted); line-height: 1.4; }
+.lc-mode-card.active .lc-mode-desc { color: var(--blue-dark); opacity: 0.75; }
+
+/* ── MODE-SPECIFIC FIELDS ── */
+.lc-mode-fields {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    margin-top: 12px;
+}
+
+.lc-field-hint {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.45;
+}
+
+.lc-manual-hint p {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+
+.lc-code-block {
+    background: #f0f0f0;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--text);
+    line-height: 1.6;
+}
+
+/* ── HARDCODED ADMINS ── */
+.lc-admins-textarea {
+    height: 72px;
+    resize: vertical;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+}
+
+/* ── CONFIRMATION CODE ── */
+.lc-confirm-section {
+    background: #fff3f3;
+    border: 1.5px solid #f5c6c2;
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin-top: 24px;
+}
+
+.lc-confirm-label {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #7a0000;
+    margin-bottom: 10px;
+}
+
+.lc-confirm-code {
+    font-family: 'DM Mono', monospace;
+    font-size: 2.2rem;
+    font-weight: 700;
+    letter-spacing: 0.35em;
+    color: #c0392b;
+    background: #fff;
+    border: 2px solid #f5c6c2;
+    border-radius: 8px;
+    padding: 10px 20px;
+    display: inline-block;
+    margin-bottom: 14px;
+    user-select: none;
+}
+
+.lc-confirm-input {
+    max-width: 200px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.2em;
+    text-align: center;
+    font-size: 1.1rem;
+}
+
+/* ── LOCKOUT HINT (shown on login form) ── */
+.lc-lockout-hint {
+    background: #f0f6ff;
+    border: 1px solid #c8d8ec;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 0.82rem;
+    color: #3a5a80;
+    line-height: 1.55;
+    margin-bottom: 20px;
+}
+
+.lc-lockout-hint code {
+    background: rgba(0,0,0,0.07);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.83em;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 600px) {
+    .lc-mode-cards { grid-template-columns: 1fr; }
+    .lc-form-row { grid-template-columns: 1fr; }
+    .lc-form-row label { margin-bottom: 2px; }
+    .lc-card { padding: 18px 16px; }
+}

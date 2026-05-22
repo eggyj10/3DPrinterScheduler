@@ -1,0 +1,17 @@
+{
+  "name": "3D Printer Scheduler",
+  "short_name": "PrintScheduler",
+  "description": "Schedule and manage 3D printer bookings",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8f9fb",
+  "theme_color": "#f8f9fb",
+  "icons": [
+    {
+      "src": "/lib/icon.ico",
+      "sizes": "any",
+      "type": "image/x-icon",
+      "purpose": "any maskable"
+    }
+  ]
+}

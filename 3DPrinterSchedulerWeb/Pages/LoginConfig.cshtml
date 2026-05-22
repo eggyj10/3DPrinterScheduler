@@ -1,0 +1,349 @@
+@page "/loginconfig"
+@model _3DPrinterSchedulerWeb.Pages.LoginConfigModel
+@{
+    ViewData["Title"] = "Login Configuration";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login Configuration — 3D Printer Scheduler</title>
+    <link rel="icon" href="~/lib/icon.ico" type="image/x-icon" />
+    <link rel="stylesheet" href="~/lib/fonts/fonts.css" />
+    <link rel="stylesheet" href="~/css/scheduler.css" />
+    <link rel="stylesheet" href="~/css/loginconfig.css" />
+</head>
+<body class="lc-body">
+
+    <form id="af" method="post">@Html.AntiForgeryToken()</form>
+
+    <div class="lc-topbar">
+        <div class="lc-topbar-inner">
+            <div class="topbar-logo"><img src="~/lib/icon.ico" alt="logo" /></div>
+            <span class="lc-title">3D Printer Scheduler — Login Configuration</span>
+            <a href="/" class="lc-back-link">← Back to Scheduler</a>
+        </div>
+    </div>
+
+    <div class="lc-content">
+
+        <!-- ── NOT YET AUTHENTICATED ── -->
+        <div id="lcLoginSection" class="lc-card">
+            <h2 class="lc-heading">Admin Login Required</h2>
+            <p class="lc-subtext">You must sign in as an admin to view or change the login configuration.</p>
+
+            <div class="lc-lockout-hint">
+                <strong>Locked out?</strong> Place a file called <code>loginmode.override.txt</code> in the
+                <code>config/</code> folder next to the application executable, containing a 4-digit PIN.
+                The app will immediately switch to No Login mode with that PIN — you can then log in here using it.
+            </div>
+
+            <!-- Username + Password (shown for AD / Manual modes) -->
+            <div id="lcUpFields">
+                <div class="lc-form-row">
+                    <label for="lcLoginUsername">Username:</label>
+                    <input type="text" class="form-control" id="lcLoginUsername" placeholder="Username" autocomplete="username" />
+                </div>
+                <div class="lc-form-row">
+                    <label for="lcLoginPassword">Password:</label>
+                    <input type="password" class="form-control" id="lcLoginPassword" placeholder="Password" autocomplete="current-password" />
+                </div>
+            </div>
+
+            <!-- PIN (shown for No Login mode) -->
+            <div id="lcPinFields" style="display:none">
+                <p class="lc-subtext" style="margin-bottom:16px">Enter the 4-digit admin PIN to continue.</p>
+                <div class="pin-inputs" id="lcPinInputs">
+                    <input type="password" class="pin-digit" maxlength="1" inputmode="numeric" />
+                    <input type="password" class="pin-digit" maxlength="1" inputmode="numeric" />
+                    <input type="password" class="pin-digit" maxlength="1" inputmode="numeric" />
+                    <input type="password" class="pin-digit" maxlength="1" inputmode="numeric" />
+                </div>
+            </div>
+
+            <p class="error-msg" id="lcLoginErrorMsg" style="text-align:left;margin-top:8px"></p>
+            <div style="margin-top:20px">
+                <button class="btn-submit" id="lcLoginBtn">Sign In</button>
+            </div>
+        </div>
+
+        <!-- ── AUTHENTICATED — CONFIG FORM ── -->
+        <div id="lcConfigSection" style="display:none">
+
+            <!-- Warning box -->
+            <div class="lc-warning-box">
+                <div class="lc-warning-title">⚠ Important Warning</div>
+                <p>Changing the login configuration can <strong>lock all users out</strong> of this application, including administrators.</p>
+                <p>If you are locked out, place a file called <code>loginmode.override.txt</code> in the <code>config/</code> folder next to the application executable. Set its contents to a <strong>4-digit PIN</strong> — the app will immediately switch to No Login mode using that PIN as the admin PIN, bypassing any stored configuration.</p>
+                <p>Switching away from <strong>No Login</strong> mode will clear the admin PIN. Switching to <strong>No Login</strong> mode will clear all user sessions.</p>
+            </div>
+
+            <div class="lc-card" style="margin-top:20px">
+                <div class="lc-current-mode-row">
+                    <span>Current login mode:</span>
+                    <span class="lc-mode-badge" id="lcCurrentModeBadge">—</span>
+                    <button class="btn-sm" id="lcRefreshCodeBtn" style="margin-left:auto">↻ Refresh Code</button>
+                    <button class="btn-sm danger" id="lcLogoutBtn">Sign Out</button>
+                </div>
+
+                <h3 class="lc-section-heading">New Login Mode</h3>
+                <div class="lc-mode-cards" id="lcModeCards">
+                    <button class="lc-mode-card" data-mode="ad">
+                        <div class="lc-mode-icon">🏢</div>
+                        <div class="lc-mode-label">Active Directory</div>
+                        <div class="lc-mode-desc">Users log in with their domain credentials. Admin access is granted by group membership.</div>
+                    </button>
+                    <button class="lc-mode-card" data-mode="manual">
+                        <div class="lc-mode-icon">📋</div>
+                        <div class="lc-mode-label">Manual Login</div>
+                        <div class="lc-mode-desc">Accounts are defined in a CSV file on the server. No domain required.</div>
+                    </button>
+                    <button class="lc-mode-card" data-mode="nologin">
+                        <div class="lc-mode-icon">🔓</div>
+                        <div class="lc-mode-label">No Login</div>
+                        <div class="lc-mode-desc">No individual logins. Anyone can make bookings. Admin features unlocked by PIN.</div>
+                    </button>
+                </div>
+
+                <!-- AD-specific fields -->
+                <div id="lcAdFields" class="lc-mode-fields" style="display:none">
+                    <div class="lc-form-row">
+                        <label>AD Domain:</label>
+                        <input type="text" class="form-control" id="lcAdDomain" placeholder="e.g. example.com" />
+                    </div>
+                    <div class="lc-form-row">
+                        <label>Admin Groups:</label>
+                        <input type="text" class="form-control" id="lcAdGroups" placeholder="Comma-separated group names" />
+                    </div>
+                    <p class="lc-field-hint">Users in any of the specified groups will be automatically granted admin access.</p>
+                </div>
+
+                <!-- No Login / nologin PIN field -->
+                <div id="lcNologinFields" class="lc-mode-fields" style="display:none">
+                    <div class="lc-form-row">
+                        <label>Admin PIN:</label>
+                        <input type="password" class="form-control" id="lcNologinPin"
+                               maxlength="4" inputmode="numeric" pattern="[0-9]{4}"
+                               placeholder="4-digit PIN"
+                               style="max-width:130px;letter-spacing:0.4em;text-align:center;font-family:'DM Mono',monospace" />
+                    </div>
+                    <p class="lc-field-hint">Leave blank to keep the existing PIN when staying in No Login mode.</p>
+                </div>
+
+                <!-- Manual mode hint -->
+                <div id="lcManualFields" class="lc-mode-fields" style="display:none">
+                    <div class="lc-manual-hint">
+                        <p>Create a file at <code>config/users.csv</code> next to the application executable with the following format:</p>
+                        <pre class="lc-code-block">username,firstname,lastname,password,isadmin
+alice,Alice,Smith,s3cr3t,true
+bob,Bob,Jones,p4ssw0rd,false</pre>
+                    </div>
+                </div>
+
+                <h3 class="lc-section-heading">Hardcoded Admins <span class="lc-optional">(optional)</span></h3>
+                <p class="lc-field-hint" style="margin-bottom:8px">These usernames will always have admin access regardless of group membership or CSV settings. They are hidden from the admin list in Settings.</p>
+                <textarea class="form-control lc-admins-textarea" id="lcHardcodedAdmins"
+                          placeholder="Comma-separated usernames (e.g. alice, bob)"></textarea>
+
+                <!-- Confirmation code -->
+                <div class="lc-confirm-section" id="lcConfirmSection">
+                    <p class="lc-confirm-label">To confirm this change, type the code shown below:</p>
+                    <div class="lc-confirm-code" id="lcConfirmCode">——————</div>
+                    <input type="text" class="form-control lc-confirm-input" id="lcConfirmCodeInput"
+                           placeholder="Type the 6-digit code" maxlength="6" autocomplete="off"
+                           inputmode="numeric" />
+                </div>
+
+                <p class="error-msg" id="lcSaveErrorMsg" style="text-align:left;margin-top:8px"></p>
+
+                <div style="margin-top:20px;display:flex;gap:10px;align-items:center">
+                    <button class="btn-submit" id="lcSaveBtn">Save Configuration</button>
+                    <span id="lcSaveSuccess" style="color:var(--blue-dark);font-size:0.88rem;display:none">✓ Saved successfully.</span>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /.lc-content -->
+
+    <script src="~/lib/signalr/signalr.min.js"></script>
+    <script>
+    (function () {
+        const token = () => document.querySelector('#af input[name="__RequestVerificationToken"]').value;
+        let selectedMode = null;
+        let currentLoginMode = "";
+
+        // ── INIT ──
+        async function init() {
+            const resp = await fetch("/loginconfig?handler=CurrentConfig");
+            const data = await resp.json();
+            currentLoginMode = data.loginMode || "";
+
+            if (!data.authenticated) {
+                // Show the right login form based on current mode
+                showLoginForm(currentLoginMode);
+                document.getElementById("lcLoginSection").style.display = "";
+                document.getElementById("lcConfigSection").style.display = "none";
+            } else {
+                populateConfig(data);
+                document.getElementById("lcLoginSection").style.display = "none";
+                document.getElementById("lcConfigSection").style.display = "";
+            }
+        }
+
+        function showLoginForm(mode) {
+            const upFields  = document.getElementById("lcUpFields");
+            const pinFields = document.getElementById("lcPinFields");
+            if (mode === "nologin") {
+                upFields.style.display  = "none";
+                pinFields.style.display = "";
+                setupLcPinDigits();
+            } else {
+                upFields.style.display  = "";
+                pinFields.style.display = "none";
+            }
+        }
+
+        function populateConfig(data) {
+            currentLoginMode = data.loginMode || "";
+            const modeLabels = { ad: "Active Directory", manual: "Manual Login", nologin: "No Login", "": "Not Configured" };
+            document.getElementById("lcCurrentModeBadge").textContent = modeLabels[currentLoginMode] || currentLoginMode;
+            document.getElementById("lcConfirmCode").textContent = data.confirmCode || "——————";
+            document.getElementById("lcAdDomain").value  = data.adDomain || "";
+            document.getElementById("lcAdGroups").value  = data.adAdminGroups || "";
+            document.getElementById("lcHardcodedAdmins").value = data.hardcodedAdmins || "";
+
+            // Pre-select the current mode card
+            if (currentLoginMode) selectMode(currentLoginMode, false);
+        }
+
+        function selectMode(mode, userAction = true) {
+            selectedMode = mode;
+            document.querySelectorAll(".lc-mode-card").forEach(c => {
+                c.classList.toggle("active", c.dataset.mode === mode);
+            });
+            document.getElementById("lcAdFields").style.display     = mode === "ad"      ? "" : "none";
+            document.getElementById("lcNologinFields").style.display = mode === "nologin" ? "" : "none";
+            document.getElementById("lcManualFields").style.display  = mode === "manual"  ? "" : "none";
+            if (userAction) {
+                document.getElementById("lcSaveErrorMsg").textContent = "";
+                document.getElementById("lcSaveSuccess").style.display = "none";
+            }
+        }
+
+        // ── LOGIN ──
+        async function lcLogin() {
+            const err = document.getElementById("lcLoginErrorMsg");
+            err.textContent = "";
+            let body;
+
+            if (currentLoginMode === "nologin") {
+                const digits = [...document.querySelectorAll("#lcPinInputs .pin-digit")].map(d => d.value);
+                if (digits.some(d => !d)) { err.textContent = "Please enter all 4 digits."; return; }
+                body = { pin: digits.join("") };
+            } else {
+                const u = document.getElementById("lcLoginUsername").value.trim();
+                const p = document.getElementById("lcLoginPassword").value;
+                if (!u || !p) { err.textContent = "Please enter your username and password."; return; }
+                body = { username: u, password: p };
+            }
+
+            try {
+                const resp = await fetch("/loginconfig?handler=LcLogin", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "RequestVerificationToken": token() },
+                    body: JSON.stringify(body)
+                });
+                const data = await resp.json();
+                if (!data.success) { err.textContent = data.error || "Login failed."; return; }
+                document.getElementById("lcLoginSection").style.display = "none";
+                document.getElementById("lcConfigSection").style.display = "";
+                document.getElementById("lcConfirmCode").textContent = data.confirmCode || "——————";
+                // Reload full config
+                const cfg = await (await fetch("/loginconfig?handler=CurrentConfig")).json();
+                populateConfig(cfg);
+            } catch { err.textContent = "Login failed. Please try again."; }
+        }
+
+        // ── SAVE ──
+        async function saveConfig() {
+            const err     = document.getElementById("lcSaveErrorMsg");
+            const success = document.getElementById("lcSaveSuccess");
+            err.textContent = "";
+            success.style.display = "none";
+
+            if (!selectedMode) { err.textContent = "Please select a login mode."; return; }
+
+            const confirmCode = document.getElementById("lcConfirmCodeInput").value.trim();
+            if (!confirmCode) { err.textContent = "Please type the confirmation code."; return; }
+
+            const body = {
+                loginMode:       selectedMode,
+                adDomain:        document.getElementById("lcAdDomain").value.trim(),
+                adAdminGroups:   document.getElementById("lcAdGroups").value.trim(),
+                adminPin:        document.getElementById("lcNologinPin").value.trim(),
+                hardcodedAdmins: document.getElementById("lcHardcodedAdmins").value.trim(),
+                confirmCode
+            };
+
+            try {
+                const resp = await fetch("/loginconfig?handler=SaveConfig", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "RequestVerificationToken": token() },
+                    body: JSON.stringify(body)
+                });
+                const data = await resp.json();
+                if (!data.success) { err.textContent = data.error || "Save failed."; return; }
+                document.getElementById("lcConfirmCodeInput").value = "";
+                document.getElementById("lcNologinPin").value = "";
+                success.style.display = "";
+                // Reload fresh config + new code
+                const cfg = await (await fetch("/loginconfig?handler=CurrentConfig")).json();
+                populateConfig(cfg);
+                setTimeout(() => { success.style.display = "none"; }, 3000);
+            } catch { err.textContent = "Save failed. Please try again."; }
+        }
+
+        async function refreshCode() {
+            const cfg = await (await fetch("/loginconfig?handler=CurrentConfig")).json();
+            if (cfg.confirmCode) document.getElementById("lcConfirmCode").textContent = cfg.confirmCode;
+        }
+
+        async function lcLogout() {
+            await fetch("/loginconfig?handler=LcLogout");
+            document.getElementById("lcConfigSection").style.display = "none";
+            document.getElementById("lcLoginSection").style.display = "";
+            showLoginForm(currentLoginMode);
+        }
+
+        // ── PIN DIGIT SETUP ──
+        function setupLcPinDigits() {
+            const digits = [...document.querySelectorAll("#lcPinInputs .pin-digit")];
+            digits.forEach((d, i) => {
+                d.addEventListener("input", () => {
+                    d.value = d.value.replace(/\D/g, "").slice(-1);
+                    if (d.value && i < digits.length - 1) digits[i + 1].focus();
+                    if (d.value && i === digits.length - 1) lcLogin();
+                });
+                d.addEventListener("keydown", e => {
+                    if (e.key === "Backspace" && !d.value && i > 0) digits[i - 1].focus();
+                });
+            });
+        }
+
+        // ── EVENT LISTENERS ──
+        document.querySelectorAll(".lc-mode-card").forEach(card => {
+            card.addEventListener("click", () => selectMode(card.dataset.mode));
+        });
+        document.getElementById("lcLoginBtn").addEventListener("click", lcLogin);
+        document.getElementById("lcLoginPassword")?.addEventListener("keydown", e => { if (e.key === "Enter") lcLogin(); });
+        document.getElementById("lcSaveBtn").addEventListener("click", saveConfig);
+        document.getElementById("lcLogoutBtn").addEventListener("click", lcLogout);
+        document.getElementById("lcRefreshCodeBtn").addEventListener("click", refreshCode);
+
+        init();
+    })();
+    </script>
+</body>
+</html>

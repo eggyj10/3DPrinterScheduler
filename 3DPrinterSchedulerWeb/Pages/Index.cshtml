@@ -1,0 +1,523 @@
+﻿@page
+@model _3DPrinterSchedulerWeb.Pages.IndexModel
+@{
+    ViewData["Title"] = "3D Printer Scheduler";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D Printer Scheduler</title>
+    <link rel="icon" href="~/lib/icon.ico" type="image/x-icon" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#f8f9fb" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="PrintScheduler" />
+    <link rel="stylesheet" href="~/lib/fonts/fonts.css" />
+    <link rel="stylesheet" href="~/css/scheduler.css" />
+</head>
+<body>
+
+    <form id="af" method="post">@Html.AntiForgeryToken()</form>
+
+    <!-- ── TOP BAR ── -->
+    <div class="topbar">
+        <div class="topbar-left">
+            <div class="topbar-logo" id="topbarLogo"><img src="~/lib/icon.ico" alt="logo" /></div>
+            <div class="title-row">
+                <h1>3D Printer Scheduler</h1>
+                <span id="adminBadge" class="admin-badge" style="display:none">Admin</span>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <button class="hamburger-btn" id="hamburgerBtn" aria-label="Menu">☰</button>
+            <div class="topbar-menu" id="topbarMenu">
+                <button class="settings-btn" id="blockBtn" style="display:none">🚫 Block Printer</button>
+                <button class="settings-btn" id="statsBtn" style="display:none">📊 Statistics</button>
+                <input type="date" id="selectedDate" class="date-picker" />
+                <button class="settings-btn" id="settingsBtn" style="display:none">⚙ Settings</button>
+                <button class="settings-btn" id="pinBtn" style="display:none">🔐 Admin PIN</button>
+                <button class="settings-btn" id="loginBtn">👤 Sign In</button>
+                <div class="user-info-row" id="userInfoRow" style="display:none">
+                    <span class="user-display-name" id="userDisplayName"></span>
+                    <button class="settings-btn" id="exitPinAdminBtn" style="display:none">Exit Admin</button>
+                    <button class="settings-btn" id="logoutBtn">Sign Out</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── SCHEDULER GRID ── -->
+    <div class="scheduler-outer">
+        <div class="no-printers-warning" id="noPrintersWarning" style="display:none">
+            <div class="no-printers-msg">
+                <div class="no-printers-icon">🖨</div>
+                <p>No printers have been configured.</p>
+                <p id="noPrintersAdminMsg">Please add printers in <button class="no-printers-settings-btn" onclick="openSettings()">Settings</button> to get started.</p>
+                <p id="noPrintersUserMsg">Please ask an admin to add printers to get started.</p>
+            </div>
+        </div>
+        <div class="scheduler-scroll">
+            <div class="grid-wrap" id="gridWrap"></div>
+        </div>
+    </div>
+
+    <!-- ── BOTTOM BAR ── -->
+    <div class="bottom-bar">
+        <button class="create-btn" id="openModalBtn">+ CREATE NEW BOOKING</button>
+        <span class="bottom-bar-msg" id="bottomBarMsg"></span>
+    </div>
+
+
+    <!-- ══════════════════════════════════════
+     LOGIN MODAL
+═══════════════════════════════════════ -->
+    <div class="modal-overlay" id="loginModalOverlay">
+        <div class="modal login-modal">
+            <div class="modal-titlebar">
+                <div class="logo-sm"><img src="~/lib/icon.ico" alt="logo" /></div>
+                <span>3D Printer Scheduler - Sign In</span>
+                <button class="close-btn" id="loginCloseBtn">✕</button>
+            </div>
+            <div class="modal-body">
+                <h2>Sign In</h2>
+                <div class="form-row">
+                    <label for="loginUsername">Username:</label>
+                    <input type="text" class="form-control" id="loginUsername" placeholder="Username" autocomplete="username" />
+                </div>
+                <div class="form-row">
+                    <label for="loginPassword">Password:</label>
+                    <input type="password" class="form-control" id="loginPassword" placeholder="Password" autocomplete="current-password" />
+                </div>
+                <p class="error-msg" id="loginErrorMsg"></p>
+                <div class="modal-actions">
+                    <button class="btn-cancel" id="loginCancelBtn">Cancel</button>
+                    <button class="btn-submit" id="loginSubmitBtn">Sign In</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ══════════════════════════════════════
+     BOOKING MODAL
+═══════════════════════════════════════ -->
+    <div class="modal-overlay" id="bookingModalOverlay">
+        <div class="modal">
+            <div class="modal-titlebar">
+                <div class="logo-sm"><img src="~/lib/icon.ico" alt="logo" /></div>
+                <span>3D Printer Scheduler - Booking</span>
+                <button class="close-btn" id="closeModalBtn">✕</button>
+            </div>
+            <div class="modal-body">
+                <h2>Printer Booking</h2>
+                <div class="form-section">
+                    <div class="autocomplete-wrap">
+                        <input type="text" class="form-control" id="studentNameInput"
+                               placeholder="Name" autocomplete="off" />
+                        <div class="autocomplete-list hidden" id="autocompleteList"></div>
+                    </div>
+                    <select class="form-control" id="printerSelect" required>
+                        <option value="" disabled selected>Select Printer</option>
+                    </select>
+                    <input type="date" class="form-control" id="bookingDate" />
+                </div>
+                <div class="form-row">
+                    <label for="studentClass">Class:</label>
+                    <select class="form-control" id="studentClass" required>
+                        <option value="">Select Class</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label for="weightInput">Weight:</label>
+                    <input type="number" class="form-control" id="weightInput"
+                           placeholder="grams (e.g. 150)" step="0.01" min="0" />
+                </div>
+                <div class="form-row">
+                    <label for="filamentType">Filament:</label>
+                    <select class="form-control" id="filamentType"></select>
+                </div>
+                <div class="booking-info">
+                    <div>
+                        <span>Total Time Booked:</span><br>
+                        <input type="text" class="duration-input" id="totalTimeDisplay" value="00:00" placeholder="0:00" disabled />
+                    </div>
+                    <div><span>Price:</span><br><strong id="priceDisplay">$0.00</strong></div>
+                </div>
+                <div class="timeslot-section">
+                    <label>Click slots to select your booking time — grey slots are already booked.</label>
+                    <div class="timeslot-wrap">
+                        <div class="slot-overlay" id="timeslotOverlay">Select a printer first</div>
+                        <div class="timeslot-grid" id="timeslotGrid"></div>
+                    </div>
+                </div>
+                <p class="error-msg" id="errorMsg"></p>
+                <div class="modal-actions">
+                    <button class="btn-cancel" id="cancelBtn">Cancel</button>
+                    <button class="btn-submit" id="submitBtn">Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ══════════════════════════════════════
+     EDIT BOOKING MODAL
+═══════════════════════════════════════ -->
+    <div class="modal-overlay" id="editModalOverlay">
+        <div class="modal">
+            <div class="modal-titlebar">
+                <div class="logo-sm"><img src="~/lib/icon.ico" alt="logo" /></div>
+                <span>3D Printer Scheduler - Edit Booking</span>
+                <button class="close-btn" id="editCloseBtn">✕</button>
+            </div>
+            <div class="modal-body">
+                <h2>Edit Booking</h2>
+                <div class="form-section">
+                    <input type="text" class="form-control" id="editStudentNameInput"
+                           placeholder="Name" autocomplete="off" />
+                    <select class="form-control" id="editPrinterSelect">
+                        <option value="" disabled selected>Select Printer</option>
+                    </select>
+                    <input type="date" class="form-control" id="editBookingDate" />
+                </div>
+                <div class="form-row">
+                    <label for="editStudentClass">Class:</label>
+                    <select class="form-control" id="editStudentClass">
+                        <option value="">Select Class</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label for="editWeightInput">Weight:</label>
+                    <input type="number" class="form-control" id="editWeightInput"
+                           placeholder="grams" step="0.01" min="0" />
+                </div>
+                <div class="form-row">
+                    <label for="editFilamentType">Filament:</label>
+                    <select class="form-control" id="editFilamentType"></select>
+                </div>
+                <div class="booking-info">
+                    <div>
+                        <span>Total Time Booked:</span><br>
+                        <input type="text" class="duration-input" id="editTotalTimeDisplay" value="00:00" placeholder="0:00" disabled />
+                    </div>
+                    <div><span>Price:</span><br><strong id="editPriceDisplay">$0.00</strong></div>
+                </div>
+                <div class="timeslot-section">
+                    <label>Click slots to select the booking time — grey slots are already booked.</label>
+                    <div class="timeslot-grid" id="editTimeslotGrid"></div>
+                </div>
+                <p class="error-msg" id="editErrorMsg"></p>
+                <div class="modal-actions-edit">
+                    <button class="btn-delete" id="editDeleteBtn">🗑 Delete Booking</button>
+                    <div class="right">
+                        <button class="btn-cancel" id="editCancelBtn">Cancel</button>
+                        <button class="btn-submit" id="editSaveBtn">Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ══════════════════════════════════════
+     ALL BOOKINGS LIST MODAL
+═══════════════════════════════════════ -->
+    <div class="modal-overlay" id="listModalOverlay">
+        <div class="modal list-modal">
+            <div class="modal-titlebar">
+                <div class="logo-sm"><img src="~/lib/icon.ico" alt="logo" /></div>
+                <span>3D Printer Scheduler - All Bookings</span>
+                <button class="close-btn" id="listCloseBtn">✕</button>
+            </div>
+            <div class="list-toolbar">
+                <input type="text" class="list-search" id="listSearch" placeholder="Search bookings..." />
+            </div>
+            <div class="list-body" id="listBody"></div>
+        </div>
+    </div>
+
+
+    <!-- ══════════════════════════════════════
+     BLOCK PRINTER TIME MODAL
+═══════════════════════════════════════ -->
+    <div class="modal-overlay" id="blockModalOverlay">
+        <div class="modal">
+            <div class="modal-titlebar">
+                <div class="logo-sm"><img src="~/lib/icon.ico" alt="logo" /></div>
+                <span>3D Printer Scheduler - Block Printer Time</span>
+                <button class="close-btn" id="blockCloseBtn">✕</button>
+            </div>
+            <div class="modal-body">
+                <h2>Block Printer Time</h2>
+                <div class="form-section">
+                    <select class="form-control" id="blockPrinterSelect" required>
+                        <option value="" disabled selected>Select Printer</option>
+                        <option>Printer 5</option>
+                        <option>Printer 6</option>
+                        <option>Printer 7</option>
+                    </select>
+                    <select class="form-control" id="blockReasonSelect" required>
+                        <option value="" disabled selected>Select Reason</option>
+                        <option value="maintenance">Maintenance</option>
+                        <option value="outoforder">Out of Order</option>
+                        <option value="unavailable">Block Printing</option>
+                    </select>
+                    <input type="date" class="form-control" id="blockDate" />
+                </div>
+                <div class="timeslot-section">
+                    <label>Click slots to select the time to block — grey slots are already taken.</label>
+                    <div class="timeslot-wrap">
+                        <div class="slot-overlay" id="blockTimeslotOverlay">Select a printer first</div>
+                        <div class="timeslot-grid" id="blockTimeslotGrid"></div>
+                    </div>
+                </div>
+                <p class="error-msg" id="blockErrorMsg"></p>
+                <div class="modal-actions-edit">
+                    <button class="btn-delete" id="blockDeleteBtn">🗑 Remove Block</button>
+                    <div class="right">
+                        <button class="btn-cancel" id="blockCancelBtn">Cancel</button>
+                        <button class="btn-submit" id="blockSubmitBtn">Save Block</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ══════════════════════════════════════
+     STATISTICS MODAL
+═══════════════════════════════════════ -->
+    <div class="modal-overlay" id="statsModalOverlay">
+        <div class="modal stats-modal">
+            <div class="modal-titlebar">
+                <div class="logo-sm"><img src="~/lib/icon.ico" alt="logo" /></div>
+                <span>3D Printer Scheduler - Statistics</span>
+                <button class="close-btn" id="statsCloseBtn">✕</button>
+            </div>
+            <div class="stats-header">
+                <h2 class="stats-title">Statistics</h2>
+                <div class="stats-filters">
+                    <div class="stats-filter-group">
+                        <label>Class:</label>
+                        <select class="form-control stats-select" id="statsClass"></select>
+                    </div>
+                    <div class="stats-filter-group">
+                        <label>From:</label>
+                        <input type="date" class="form-control stats-date" id="statsFrom" />
+                    </div>
+                    <span class="stats-dash">—</span>
+                    <div class="stats-filter-group">
+                        <label>To:</label>
+                        <input type="date" class="form-control stats-date" id="statsTo" />
+                    </div>
+                </div>
+            </div>
+            <div class="stats-body" id="statsBody"></div>
+        </div>
+    </div>
+
+
+    <!-- ══════════════════════════════════════
+     SETTINGS MODAL
+═══════════════════════════════════════ -->
+    <div class="modal-overlay" id="settingsModalOverlay">
+        <div class="modal settings-modal">
+            <div class="modal-titlebar">
+                <div class="logo-sm"><img src="~/lib/icon.ico" alt="logo" /></div>
+                <span>3D Printer Scheduler - Settings</span>
+                <button class="close-btn" id="settingsCloseBtn">✕</button>
+            </div>
+            <div class="tab-bar">
+                <button class="tab-btn active" data-tab="filaments">Filaments</button>
+                <button class="tab-btn" data-tab="classes">Class List</button>
+                <button class="tab-btn" data-tab="printers">Printers</button>
+                <button class="tab-btn" data-tab="admins">Admins</button>
+                <button class="tab-btn" data-tab="kiosk">Kiosk</button>
+                <button class="tab-btn" data-tab="pin" id="pinTabBtn" style="display:none">Admin PIN</button>
+            </div>
+            <div class="tab-panel active" data-tab="filaments">
+                <div class="settings-listbox">
+                    <div class="filament-list-header">
+                        <span class="col-name">Filament</span>
+                        <span class="col-price">Price ($/kg)</span>
+                    </div>
+                    <div id="filamentListBox"></div>
+                </div>
+                <div class="settings-toolbar">
+                    <input type="text" class="ti" id="filamentNameInput" placeholder="Filament name (e.g. PLA)" />
+                    <input type="number" class="ti ti-price" id="filamentPriceInput" placeholder="$/kg" step="0.01" min="0" />
+                    <button class="btn-sm primary" id="addFilamentBtn">Add</button>
+                    <button class="btn-sm" id="editFilamentBtn">Edit</button>
+                    <button class="btn-sm danger" id="removeFilamentBtn">Delete</button>
+                </div>
+            </div>
+            <div class="tab-panel" data-tab="classes">
+                <div class="settings-listbox">
+                    <div id="classListBox"></div>
+                </div>
+                <div class="settings-toolbar">
+                    <input type="text" class="ti" id="classNameInput" placeholder="Class name" />
+                    <button class="btn-sm primary" id="addClassBtn">Add</button>
+                    <button class="btn-sm danger" id="removeClassBtn">Remove</button>
+                </div>
+            </div>
+            <div class="tab-panel" data-tab="printers">
+                <div class="settings-listbox" id="printerListBox"></div>
+                <div class="settings-toolbar">
+                    <input type="text" class="ti" id="printerNameInput" placeholder="Printer name (e.g. Printer 1)" />
+                    <button class="btn-sm primary" id="addPrinterBtn">Add</button>
+                    <button class="btn-sm" id="editPrinterBtn">Rename</button>
+                    <button class="btn-sm danger" id="removePrinterBtn">Delete</button>
+                </div>
+            </div>
+            <div class="tab-panel" data-tab="admins">
+                <p id="adminsTabNotice" style="font-size:0.82rem;color:var(--muted);margin-bottom:10px;line-height:1.45"></p>
+                <div class="settings-listbox" id="adminsListboxWrap">
+                    <div id="adminListBox"></div>
+                </div>
+                <div class="settings-toolbar" id="adminsToolbarWrap">
+                    <input type="text" class="ti" id="adminUsernameInput" placeholder="Username" />
+                    <button class="btn-sm primary" id="addAdminBtn">Add</button>
+                    <button class="btn-sm danger" id="removeAdminBtn">Remove</button>
+                </div>
+                <p class="error-msg" id="adminErrorMsg" style="text-align:left;min-height:0;margin-top:0"></p>
+            </div>
+            <div class="tab-panel" data-tab="pin">
+                <p style="font-size:0.88rem;margin-bottom:16px">Change the 4-digit PIN used to unlock admin features in shared mode.</p>
+                <div class="form-row" style="margin-bottom:14px">
+                    <label for="pinNewInput" style="white-space:nowrap">New PIN:</label>
+                    <input type="password" class="form-control" id="pinNewInput" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" placeholder="0000" style="max-width:120px;letter-spacing:0.4em;text-align:center;font-family:'DM Mono',monospace" />
+                </div>
+                <button class="btn-submit" id="savePinBtn">Save PIN</button>
+                <p class="error-msg" id="pinSettingsErrorMsg" style="text-align:left;min-height:0;margin-top:10px"></p>
+            </div>
+            <div class="tab-panel" data-tab="kiosk">
+                <p style="font-size:0.88rem;margin-bottom:14px">A <strong>kiosk computer</strong> allows bookings to be viewed without logging in first — ideal for a computer in the classroom.</p>
+                <p id="kioskNoLoginMsg" style="font-size:0.85rem;color:#c0392b;margin-bottom:14px;display:none">Kiosk mode is not available when using No Login mode.</p>
+                <p style="font-size:0.85rem;color:var(--muted);margin-bottom:6px">This computer's kiosk status:</p>
+                <p id="kioskStatusText" style="font-size:0.92rem;font-weight:600;margin-bottom:18px"></p>
+                <div style="display:flex;gap:10px">
+                    <button class="btn-submit" id="enableKioskBtn" onclick="enableKiosk()">Enable Kiosk Mode</button>
+                    <button class="btn-delete" id="disableKioskBtn" onclick="disableKiosk()">Disable Kiosk Mode</button>
+                </div>
+                <p class="error-msg" id="kioskErrorMsg" style="margin-top:0;min-height:0"></p>
+            </div>
+            <div class="settings-footer">
+                <span class="error-msg" id="settingsSaveError" style="margin-right:auto;text-align:left"></span>
+                <button class="btn-cancel" id="settingsCancelBtn">Cancel</button>
+                <button class="btn-submit" id="settingsSaveBtn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+     PIN MODAL
+═══════════════════════════════════════ -->
+    <div class="modal-overlay" id="pinModalOverlay">
+        <div class="modal pin-modal">
+            <div class="modal-titlebar">
+                <div class="logo-sm"><img src="~/lib/icon.ico" alt="logo" /></div>
+                <span>3D Printer Scheduler - Admin PIN</span>
+                <button class="close-btn" id="pinCloseBtn">✕</button>
+            </div>
+            <div class="modal-body">
+                <h2>Admin PIN</h2>
+                <p style="font-size:0.88rem;color:var(--muted);margin-bottom:24px">Enter the 4-digit PIN to unlock admin features for 5 minutes.</p>
+                <div class="pin-inputs" id="pinInputs">
+                    <input type="password" class="pin-digit" maxlength="1" inputmode="numeric" />
+                    <input type="password" class="pin-digit" maxlength="1" inputmode="numeric" />
+                    <input type="password" class="pin-digit" maxlength="1" inputmode="numeric" />
+                    <input type="password" class="pin-digit" maxlength="1" inputmode="numeric" />
+                </div>
+                <p class="error-msg" id="pinErrorMsg"></p>
+                <div class="modal-actions">
+                    <button class="btn-cancel" id="pinCancelBtn">Cancel</button>
+                    <button class="btn-submit" id="pinSubmitBtn">Unlock</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+     FIRST-LAUNCH SETUP MODAL
+═══════════════════════════════════════ -->
+    <div class="modal-overlay" id="setupModalOverlay">
+        <div class="modal setup-modal">
+            <div class="modal-titlebar">
+                <div class="logo-sm"><img src="~/lib/icon.ico" alt="logo" /></div>
+                <span>3D Printer Scheduler — First-Time Setup</span>
+            </div>
+            <div class="modal-body">
+                <h2>Welcome!</h2>
+                <p style="text-align:center;color:var(--muted);font-size:0.9rem;margin-bottom:24px;line-height:1.5">
+                    Choose how users will log in to this scheduler. This can be changed later from <strong>/loginconfig</strong>.
+                </p>
+
+                <div class="setup-mode-cards" id="setupModeCards">
+                    <button class="setup-mode-card" data-mode="ad">
+                        <div class="setup-mode-icon">🏢</div>
+                        <div class="setup-mode-label">Active Directory</div>
+                        <div class="setup-mode-desc">Domain credentials. Admin access by group membership.</div>
+                    </button>
+                    <button class="setup-mode-card" data-mode="manual">
+                        <div class="setup-mode-icon">📋</div>
+                        <div class="setup-mode-label">Manual Login</div>
+                        <div class="setup-mode-desc">Accounts defined in a CSV file on the server.</div>
+                    </button>
+                    <button class="setup-mode-card" data-mode="nologin">
+                        <div class="setup-mode-icon">🔓</div>
+                        <div class="setup-mode-label">No Login</div>
+                        <div class="setup-mode-desc">Anyone can book. Admin features require a PIN.</div>
+                    </button>
+                </div>
+
+                <!-- AD fields -->
+                <div id="setupAdFields" class="setup-mode-fields" style="display:none">
+                    <div class="form-row">
+                        <label>AD Domain:</label>
+                        <input type="text" class="form-control" id="setupAdDomain" placeholder="e.g. example.com" />
+                    </div>
+                    <div class="form-row">
+                        <label>Admin Groups:</label>
+                        <input type="text" class="form-control" id="setupAdGroups" placeholder="Comma-separated group names" />
+                    </div>
+                    <p style="font-size:0.78rem;color:var(--muted);margin-top:4px">Users in any listed group will automatically have admin access.</p>
+                </div>
+
+                <!-- No Login PIN field -->
+                <div id="setupNologinFields" class="setup-mode-fields" style="display:none">
+                    <div class="form-row">
+                        <label>Admin PIN:</label>
+                        <input type="password" class="form-control" id="setupAdminPin"
+                               maxlength="4" inputmode="numeric" pattern="[0-9]{4}"
+                               placeholder="4-digit PIN"
+                               style="max-width:130px;letter-spacing:0.4em;text-align:center;font-family:'DM Mono',monospace" />
+                    </div>
+                    <p style="font-size:0.78rem;color:var(--muted);margin-top:4px">This PIN unlocks admin features for 5 minutes.</p>
+                </div>
+
+                <!-- Manual mode hint -->
+                <div id="setupManualFields" class="setup-mode-fields" style="display:none">
+                    <p style="font-size:0.85rem;color:var(--muted);line-height:1.5">
+                        Create <code style="background:#f0f0f0;padding:1px 5px;border-radius:4px;font-family:'DM Mono',monospace">config/users.csv</code>
+                        next to the application executable before users can log in.<br>
+                        Format: <code style="background:#f0f0f0;padding:1px 5px;border-radius:4px;font-family:'DM Mono',monospace">username,firstname,lastname,password,isadmin</code>
+                    </p>
+                </div>
+
+                <p class="error-msg" id="setupErrorMsg"></p>
+                <div class="modal-actions">
+                    <button class="btn-submit" id="setupSubmitBtn">Continue →</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/lib/signalr/signalr.min.js"></script>
+    <script src="~/js/scheduler.js"></script>
+</body>
+</html>
