@@ -434,7 +434,7 @@ namespace _3DPrinterSchedulerWeb.Pages
 
         public async Task<IActionResult> OnPostSaveAdminsAsync([FromBody] List<string> usernames)
         {
-            if (!SessionIsAdmin) return Forbidden();
+            if (!EffectiveAdmin) return Forbidden();
             if (usernames == null) return new JsonResult(new { success = false });
 
             var hardcoded = await GetHardcodedAdminsAsync();
