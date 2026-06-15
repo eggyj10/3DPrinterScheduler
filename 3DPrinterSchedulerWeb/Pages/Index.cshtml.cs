@@ -13,7 +13,8 @@ namespace _3DPrinterSchedulerWeb.Pages
     {
         private readonly AppDbContext _db;
         private readonly IHubContext<SchedulerHub> _hub;
-        public IndexModel(AppDbContext db, IHubContext<SchedulerHub> hub) { _db = db; _hub = hub; }
+        private readonly IConfiguration _config;
+        public IndexModel(AppDbContext db, IHubContext<SchedulerHub> hub, IConfiguration config) { _db = db; _hub = hub; _config = config; }
 
         // ── SESSION HELPERS ──
         private string? SessionUsername   => HttpContext.Session.GetString("username");
@@ -512,6 +513,14 @@ namespace _3DPrinterSchedulerWeb.Pages
             _db.Bookings.Add(booking);
             await _db.SaveChangesAsync();
             await _hub.Clients.All.SendAsync("bookingsChanged");
+
+            // Hand the submitter a weight-derived code so the offline slicer
+            // helper can be dismissed. Only real prints get one.
+            if (booking.BookingType == "booking" && booking.WeightGrams > 0)
+            {
+                var secret = _config["BookingCodeSecret"] ?? "";
+                booking.BookingCode = BookingCodes.Generate(booking.WeightGrams, secret);
+            }
             return new JsonResult(booking);
         }
 

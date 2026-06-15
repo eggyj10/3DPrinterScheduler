@@ -1,4 +1,6 @@
-﻿namespace _3DPrinterSchedulerWeb.Models
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace _3DPrinterSchedulerWeb.Models
 {
     public class Booking
     {
@@ -13,5 +15,9 @@
         public double WeightGrams { get; set; }
         public double Price { get; set; }
         public string BookingType { get; set; } = "booking"; // booking / maintenance / unavailable
+
+        // Returned to the submitter so the booking-code toast can show it.
+        // Never persisted: the offline helper recomputes it from the weight.
+        [NotMapped] public string? BookingCode { get; set; }
     }
 }

@@ -30,10 +30,18 @@ Made using Claude AI.
    - [Admin PIN](#admin-pin)
 10. [Login Configuration Page](#login-configuration-page)
 11. [Kiosk Mode](#kiosk-mode-1)
-12. [Emergency Recovery](#emergency-recovery)
-13. [Database](#database)
-14. [Project Structure](#project-structure)
-15. [Technology Stack](#technology-stack)
+12. [Slicer Booking Helper](#slicer-booking-helper)
+    - [How It Works](#how-it-works)
+    - [Installing the Helper](#installing-the-helper)
+    - [Configuring the Slicer](#configuring-the-slicer)
+    - [Helper Configuration (appsettings.json)](#helper-configuration-appsettingsjson)
+    - [Online vs Offline Mode](#online-vs-offline-mode)
+    - [Booking Codes & the Shared Secret](#booking-codes--the-shared-secret)
+    - [Building the Helper from Source](#building-the-helper-from-source)
+13. [Emergency Recovery](#emergency-recovery)
+14. [Database](#database)
+15. [Project Structure](#project-structure)
+16. [Technology Stack](#technology-stack)
 
 ---
 
@@ -55,6 +63,7 @@ Made using Claude AI.
 - **Responsive top bar** — collapses to a hamburger menu on narrow screens
 - **Dynamic grid scaling** — hour row height scales to fill the screen on large monitors
 - **PWA support** — installable as a web app on desktop and mobile
+- **Slicer Booking Helper** — a companion Windows app that runs from the slicer after slicing, forcing students to log their print before they print it. Opens the booking form with the filament, weight, and time pre-filled, and includes an offline verification mode for slicing PCs with no network access
 
 ---
 
@@ -380,6 +389,145 @@ Kiosk mode is designed for a **dedicated classroom or workshop computer** that s
 
 ---
 
+## Slicer Booking Helper
+
+The **Slicer Booking Helper** (`SlicerBookingHelper`) is a small companion Windows app that nudges students to book a print *before* they print it. It runs automatically as a **post-processing script** from the slicer — the same official hook Bambu Studio, OrcaSlicer, and Orca-Flashforge all support, since they are part of the PrusaSlicer family.
+
+Each time a student slices a model and exports the G-code, the slicer launches the helper and hands it the path of the freshly generated file. The helper reads the print details out of the G-code and pops a *"This print must be booked"* dialog on top of the slicer.
+
+> **Important:** The post-processing hook only runs when the G-code is **exported to a file**. Printing *directly* to the printer (LAN / cloud send) bypasses post-processing scripts entirely, so the helper will not appear. Require students to **Export G-code to file**, then print that file, so every print passes through the helper.
+
+---
+
+### How It Works
+
+1. The student slices a model and chooses **Export G-code** (to a file).
+2. The slicer runs the helper, appending the G-code path as the last argument.
+3. The helper parses the G-code header/footer for:
+   - **Filament type** (e.g. PLA, PETG)
+   - **Total filament weight** in grams
+   - **Estimated print time**
+4. A modal, always-on-top dialog appears with these details and a button to book the print.
+5. Depending on the configured mode:
+   - **Online mode** — opens the scheduler's booking form in the default browser with the details pre-filled.
+   - **Offline mode** — shows the exact weight to book and a box to type the verification code the scheduler hands back.
+
+If the G-code cannot be parsed, the dialog still appears so the student is reminded to book — just without pre-filled numbers.
+
+---
+
+### Installing the Helper
+
+The helper ships as a **self-contained single-file executable** — the .NET runtime is bundled, so the slicing PC does **not** need .NET installed.
+
+1. Download / copy the helper folder (containing `SlicerBookingHelper.exe` and `appsettings.json`) to the slicing PC, e.g.:
+   ```
+   C:\SlicerBookingHelper\
+   ```
+2. Edit `appsettings.json` (see [Helper Configuration](#helper-configuration-appsettingsjson) below) to point at your scheduler and choose online or offline mode.
+3. Register the executable in your slicer (see [Configuring the Slicer](#configuring-the-slicer) below).
+
+---
+
+### Configuring the Slicer
+
+The post-processing field is hidden until the slicer is in **Expert / Advanced** mode.
+
+1. Switch the slicer to **Expert** (Bambu Studio / Orca-Flashforge) or **Advanced** mode.
+2. Go to **Process settings → Others → Post-processing Scripts**.
+3. Enter the full path to the helper executable, **wrapped in double quotes** if the path contains spaces:
+   ```
+   "C:\SlicerBookingHelper\SlicerBookingHelper.exe"
+   ```
+4. Save the process/profile.
+5. Slice a model and choose **Export G-code to file** — the helper should appear.
+
+> If nothing happens, confirm you are exporting to a *file* (not printing directly) and that the slicer is in Expert/Advanced mode so the post-processing field is actually applied.
+
+---
+
+### Helper Configuration (`appsettings.json`)
+
+The helper reads `appsettings.json` from the same folder as the executable.
+
+```json
+{
+  "BaseUrl": "http://localhost:5276",
+  "AlwaysOnTop": true,
+  "OfflineMode": false,
+  "BookingCodeSecret": "change-me-to-a-long-random-secret-string"
+}
+```
+
+| Key | Default | Description |
+|---|---|---|
+| `BaseUrl` | `http://localhost:5276` | The address of the scheduler web app. In online mode this is where the booking form is opened. Use the same address students would type in a browser (e.g. `http://192.168.1.50:8080`). |
+| `AlwaysOnTop` | `true` | Keeps the dialog on top of the slicer so it cannot be missed. |
+| `OfflineMode` | `false` | `false` opens the browser booking form; `true` shows the offline code-verification flow instead. |
+| `BookingCodeSecret` | *(empty)* | Shared secret used to verify offline booking codes. **Must be byte-for-byte identical** to `BookingCodeSecret` in the scheduler's `appsettings.json`. Only used in offline mode. |
+
+> **The helper's `appsettings.json` must be plain JSON with _no comments_.** Unlike the web app, the helper's parser rejects `//` comments — if the file is malformed it silently falls back to defaults (which means an empty secret and offline codes that never match).
+
+---
+
+### Online vs Offline Mode
+
+**Online mode** (`"OfflineMode": false`) is the default and the simplest. The dialog shows a **Book this print** button that opens the scheduler's booking form in the default browser, pre-filled with the filament, weight, and estimated time. The student completes and submits the booking as normal.
+
+**Offline mode** (`"OfflineMode": true`) is for a slicing PC that has **no network access** to the scheduler. There is no browser button. Instead:
+
+1. The dialog shows the exact **canonical weight** (whole grams) the student must book.
+2. On another device, the student books that print on the scheduler at **exactly** that weight.
+3. The scheduler displays a **6-digit booking code** (shown briefly in a toast after the booking is created).
+4. The student types that code into the helper and clicks **Unlock**.
+
+The code only matches if the student booked the true weight, so it acts as proof that the print was logged.
+
+---
+
+### Booking Codes & the Shared Secret
+
+Offline booking codes are an anti-spoofing mechanism. The code is an **HMAC-SHA256** of the rounded print weight, keyed with a shared secret:
+
+```
+code = first 6 digits of HMAC-SHA256( secret, round(weightGrams) )
+```
+
+The secret is **never** sent to the browser — the code is computed in C# on **both** the scheduler (server-side) and the helper, so a student cannot derive valid codes from the page source.
+
+For codes to match, the **same secret** must be set in **both** places:
+
+| File | Setting | Notes |
+|---|---|---|
+| Scheduler `appsettings.json` | `BookingCodeSecret` | Comments (`//`) are allowed here. |
+| Helper `appsettings.json` | `BookingCodeSecret` | **No comments allowed.** Must match the scheduler value exactly. |
+
+> Change `BookingCodeSecret` from its placeholder to your own long random string **before deploying**, and keep the two files in sync. If the values differ (or either is empty), every offline code will be rejected.
+
+Offline mode aside, the scheduler always generates a booking code on each real booking; in online mode this simply backs the toast and is otherwise unused.
+
+---
+
+### Building the Helper from Source
+
+The helper is a separate WinForms project (`SlicerBookingHelper`) targeting `net10.0-windows`. Building requires the **.NET 10 SDK on Windows**.
+
+A Visual Studio publish profile is included. To produce the self-contained single-file build:
+
+```
+dotnet publish SlicerBookingHelper/SlicerBookingHelper.csproj -p:PublishProfile=SelfContained-win-x64
+```
+
+The output (a single `SlicerBookingHelper.exe` plus `appsettings.json`) is written to:
+
+```
+SlicerBookingHelper\bin\Release\net10.0-windows\win-x64\publish\
+```
+
+Copy that folder to each slicing PC. Because the build is self-contained, the target PC does not need the .NET runtime installed.
+
+---
+
 ## Emergency Recovery
 
 If you are locked out of the application entirely:
@@ -457,8 +605,25 @@ The database is created automatically on first run. Schema migrations are applie
 │       ├── fonts/              # DM Sans & DM Mono (self-hosted)
 │       ├── signalr/            # SignalR client
 │       └── icon.ico
+├── BookingCodes.cs             # Shared HMAC booking-code generator (matches the helper)
 ├── Program.cs                  # App startup & middleware
 └── 3DPrinterSchedulerWeb.csproj
+```
+
+The companion helper is a separate project at the repository root:
+
+```
+SlicerBookingHelper/
+├── Program.cs                  # Entry point — invoked by the slicer with the G-code path
+├── GcodeMetadata.cs            # Parses filament, weight, and time from the G-code
+├── BookingPromptForm.cs        # The "this print must be booked" dialog (online & offline)
+├── HelperConfig.cs             # Reads appsettings.json next to the executable
+├── BookingCodes.cs             # Same HMAC generator as the web app (must produce identical codes)
+├── appsettings.json            # BaseUrl, AlwaysOnTop, OfflineMode, BookingCodeSecret
+├── Properties/
+│   └── PublishProfiles/
+│       └── SelfContained-win-x64.pubxml
+└── SlicerBookingHelper.csproj
 ```
 
 ---
@@ -475,3 +640,5 @@ The database is created automatically on first run. Schema migrations are applie
 | Frontend | Vanilla JavaScript (no frameworks) |
 | Fonts | DM Sans & DM Mono (self-hosted) |
 | Styling | Plain CSS with custom properties |
+| Slicer helper | WinForms (.NET 10, Windows) — self-contained single-file executable |
+| Booking codes | HMAC-SHA256 shared secret, computed identically on server and helper |

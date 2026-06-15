@@ -1,4 +1,4 @@
-const CACHE = 'printer-scheduler-v3';
+const CACHE = 'printer-scheduler-v6';
 const STATIC_ASSETS = [
     '/',
     '/css/scheduler.css',

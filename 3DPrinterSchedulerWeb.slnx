@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="3DPrinterSchedulerWeb/3DPrinterSchedulerWeb.csproj" />
+  <Project Path="SlicerBookingHelper/SlicerBookingHelper.csproj" />
 </Solution>

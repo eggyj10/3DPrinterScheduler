@@ -1392,3 +1392,63 @@ body.login-required::before {
 @media (max-width: 480px) {
     .setup-mode-cards { grid-template-columns: 1fr; }
 }
+
+/* ── BOOKING CODE TOAST ── */
+.booking-code-toast {
+    position: fixed;
+    right: 20px;
+    bottom: calc(var(--bottom-h) + 16px);
+    width: 280px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--blue);
+    border-radius: 10px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+    padding: 16px 18px;
+    z-index: 10000;
+    opacity: 0;
+    transform: translateY(12px);
+    pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+}
+
+    .booking-code-toast.visible {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+    }
+
+    .booking-code-toast__close {
+        position: absolute;
+        top: 6px;
+        right: 10px;
+        background: none;
+        border: none;
+        font-size: 1.3rem;
+        line-height: 1;
+        color: var(--muted);
+        cursor: pointer;
+    }
+
+    .booking-code-toast__label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin-bottom: 4px;
+    }
+
+    .booking-code-toast__code {
+        font-size: 2rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        color: var(--text);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .booking-code-toast__hint {
+        margin-top: 6px;
+        font-size: 0.8rem;
+        color: var(--muted);
+        line-height: 1.35;
+    }

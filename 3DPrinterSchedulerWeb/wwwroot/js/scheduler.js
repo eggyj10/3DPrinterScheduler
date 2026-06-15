@@ -256,6 +256,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     buildTimeslotGrid();
     updateHourHeight();
     loadBookings();
+
+    applyPrefillFromUrl();
 });
 
 // ── DATA LOADING ──
@@ -713,6 +715,37 @@ function showBottomMsg(text) {
     bottomMsgTimer = setTimeout(() => el.classList.remove("visible"), 4000);
 }
 
+// Shows the weight-derived booking code so a student on a disconnected slicing
+// PC can type it into the Slicer Booking Helper to dismiss it. Auto-closes after
+// ~60s; the student can also close it manually once they've copied the code.
+let bookingCodeTimer = null;
+function showBookingCodeToast(code) {
+    let toast = document.getElementById("bookingCodeToast");
+    if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "bookingCodeToast";
+        toast.className = "booking-code-toast";
+        toast.innerHTML =
+            '<button type="button" class="booking-code-toast__close" aria-label="Close">&times;</button>' +
+            '<div class="booking-code-toast__label">Booking code</div>' +
+            '<div class="booking-code-toast__code"></div>' +
+            '<div class="booking-code-toast__hint">Enter this in the Slicer Booking Helper to confirm your print.</div>';
+        document.body.appendChild(toast);
+        toast.querySelector(".booking-code-toast__close")
+             .addEventListener("click", () => hideBookingCodeToast());
+    }
+    toast.querySelector(".booking-code-toast__code").textContent = code;
+    toast.classList.add("visible");
+    clearTimeout(bookingCodeTimer);
+    bookingCodeTimer = setTimeout(hideBookingCodeToast, 60000);
+}
+
+function hideBookingCodeToast() {
+    const toast = document.getElementById("bookingCodeToast");
+    if (toast) toast.classList.remove("visible");
+    clearTimeout(bookingCodeTimer);
+}
+
 function updateCreateBtn() {
     const btn = document.getElementById("openModalBtn");
     const isPast = currentDate < todayStr();
@@ -729,6 +762,10 @@ function openBookingModal() {
     const today = todayStr();
     document.getElementById("bookingDate").value = currentDate >= today ? currentDate : today;
     document.getElementById("errorMsg").textContent = "";
+    // Default to an editable weight; openPrefillBooking re-locks it when needed.
+    const weightEl = document.getElementById("weightInput");
+    weightEl.readOnly = false;
+    weightEl.title = "";
     const nameInput = document.getElementById("studentNameInput");
     if (currentUser.isSharedMode) {
         nameInput.value = "";
@@ -754,6 +791,87 @@ function closeBookingModal() {
     durationInput.value = "00:00";
     durationInput.disabled = true;
     updatePrice();
+}
+
+// Set when a slicer prefill arrives while the user still has to sign in;
+// resumePendingPrefill() picks it up after a successful login.
+let pendingPrefill = null;
+
+// Opened from the Slicer Booking Helper, which appends ?prefill=1&grams=..&filament=..&minutes=..
+function applyPrefillFromUrl() {
+    const params = new URLSearchParams(location.search);
+    if (params.get("prefill") !== "1") return;
+
+    // Strip the params so a refresh doesn't reopen the modal.
+    history.replaceState(null, "", location.pathname);
+
+    const prefill = {
+        grams: params.get("grams"),
+        filament: params.get("filament"),
+        minutes: params.get("minutes"),
+    };
+
+    // In an individual login mode the login wall is already showing — hold the
+    // prefill and reopen it automatically once they sign in.
+    const notLoggedIn = !currentUser.loggedIn && !currentUser.isKiosk && !currentUser.isSharedMode;
+    if (notLoggedIn) {
+        pendingPrefill = prefill;
+        showBottomMsg("Sign in to finish booking your sliced print.");
+        return;
+    }
+
+    openPrefillBooking(prefill);
+}
+
+// Resume a prefill that was waiting on the user to log in.
+async function resumePendingPrefill() {
+    if (!pendingPrefill) return;
+    const prefill = pendingPrefill;
+    pendingPrefill = null;
+    // Lists may have come back empty while signed out — refresh before filling.
+    await Promise.all([loadFilaments(), loadClasses(), loadPrinters()]);
+    openPrefillBooking(prefill);
+}
+
+function openPrefillBooking(prefill) {
+    const missing = [];
+    if (filaments.length === 0) missing.push("filaments");
+    if (classes.length === 0) missing.push("classes");
+    if (missing.length > 0) {
+        showBottomMsg(currentUser.isAdmin
+            ? `Please add ${missing.join(" and ")} in Settings before booking.`
+            : `Please ask an admin to add ${missing.join(" and ")} before booking.`);
+        return;
+    }
+
+    openBookingModal();
+
+    // Lock the weight to the sliced value so it can't be edited down.
+    const weightEl = document.getElementById("weightInput");
+    if (prefill.grams) {
+        weightEl.value = prefill.grams;
+        weightEl.readOnly = true;
+        weightEl.title = "Weight is taken from your sliced file and can't be changed.";
+    }
+
+    const filament = (prefill.filament || "").trim().toLowerCase();
+    if (filament) {
+        const sel = document.getElementById("filamentType");
+        const match = Array.from(sel.options).find(o => {
+            const v = o.value.toLowerCase();
+            return v === filament || v.includes(filament) || filament.includes(v);
+        });
+        if (match) sel.value = match.value;
+    }
+
+    updatePrice();
+
+    const minutes = parseInt(prefill.minutes, 10);
+    if (minutes > 0) {
+        const h = Math.floor(minutes / 60), m = minutes % 60;
+        const t = h > 0 ? `${h}h ${m}m` : `${m}m`;
+        showBottomMsg(`Slicer estimate: ${t}. Pick a printer, then select about that much time on the grid.`);
+    }
 }
 
 async function submitBooking() {
@@ -797,6 +915,7 @@ async function submitBooking() {
         bookings.push(saved);
         closeBookingModal();
         renderGrid();
+        if (saved.bookingCode) showBookingCodeToast(saved.bookingCode);
     } catch {
         err.textContent = "Failed to save booking. Please try again.";
     }
@@ -2023,6 +2142,7 @@ async function submitLogin() {
         updateAuthUI();
         renderGrid();
         overlay.classList.remove("open");
+        resumePendingPrefill();
     } catch { err.textContent = "Login failed. Please try again."; }
 }
 
